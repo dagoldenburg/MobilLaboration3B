@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <EditTextPreference android:title="IP"
+        android:key="ip"
+        android:summary="Enter IP"></EditTextPreference>
+    <ListPreference android:id="@+id/listy"
+        android:title="Data collection type"
+        android:summary="Select if data collection is activity or service"
+        android:key="type"
+        android:defaultValue="1"
+        android:entries="@array/listArray"
+        android:entryValues="@array/listValues" />
+</PreferenceScreen>

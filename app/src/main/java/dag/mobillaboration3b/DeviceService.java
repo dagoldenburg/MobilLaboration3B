@@ -1,6 +1,7 @@
 package dag.mobillaboration3b;
 
-import android.app.KeyguardManager;
+import android.app.IntentService;
+import android.app.Service;
 import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothGatt;
 import android.bluetooth.BluetoothGattCallback;
@@ -12,16 +13,15 @@ import android.content.Intent;
 import android.graphics.Color;
 import android.os.Bundle;
 import android.os.Handler;
-import android.os.PowerManager;
-import android.support.v7.app.AppCompatActivity;
+import android.os.IBinder;
+import android.support.annotation.Nullable;
 import android.support.v7.widget.Toolbar;
 import android.util.Log;
-import android.view.Menu;
-import android.view.MenuInflater;
 import android.view.MenuItem;
 import android.view.WindowManager;
 import android.widget.TextView;
 import android.widget.Toast;
+
 import com.jjoe64.graphview.GraphView;
 import com.jjoe64.graphview.series.DataPoint;
 import com.jjoe64.graphview.series.LineGraphSeries;
@@ -30,20 +30,8 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.UUID;
 
-/**
- * This is where we manage the BLE device and the corresponding services, characteristics et c.
- * <p>
- * NB: In this simple example there is no other way to turn off notifications than to
- * leave the activity (the BluetoothGatt is disconnected and closed in activity.onStop).
- */
-public class DeviceActivity extends AppCompatActivity {
+public class DeviceService extends Service {
 
-    /**
-     * Documentation on UUID:s and such for services on a BBC Micro:bit.
-     * Characteristics et c. are found at
-     * https://lancaster-university.github.io/microbit-docs/resources/bluetooth/bluetooth_profile.html
-     */
-    // UART service and characteristics
     public static UUID UARTSERVICE_SERVICE_UUID =
             UUID.fromString("6E400001-B5A3-F393-E0A9-E50E24DCCA9E");
     public static UUID UART_RX_CHARACTERISTIC_UUID = // receiver on Micro:bit
@@ -51,7 +39,6 @@ public class DeviceActivity extends AppCompatActivity {
     public static UUID UART_TX_CHARACTERISTIC_UUID = // transmitter on Micro:bit
             UUID.fromString("6E400003-B5A3-F393-E0A9-E50E24DCCA9E");
 
-    // UUID for the UART BTLE client characteristic which is necessary for notifications
     public static final UUID CLIENT_CHARACTERISTIC_CONFIG =
             UUID.fromString("00002902-0000-1000-8000-00805f9b34fb");
     private boolean stop = false;
@@ -63,18 +50,21 @@ public class DeviceActivity extends AppCompatActivity {
     private long dataCount;
     private Handler mHandler;
 
-    @Override
-    protected void onStart() {
-        super.onStart();
-        start();
+    public DeviceService() {
     }
+
+    @Override
+    public int onStartCommand(Intent intent, int flags, int startId) {
+        start();
+        return Service.START_NOT_STICKY;
+    }
+
 
     private void start(){
         mConnectedDevice = ConnectedDevice.getInstance();
         if (mConnectedDevice != null) {
             connect();
         }
-        startGraph();
     }
 
     private void stop(){
@@ -90,14 +80,17 @@ public class DeviceActivity extends AppCompatActivity {
     }
 
     @Override
-    protected void onStop() {
-        super.onStop();
+    public void onDestroy() {
+        super.onDestroy();
         stop();
-        mHandler.post(new Runnable() {
-            public void run() {
-                mDataView.setText("Disconnected");
-            }
-        });
+
+    }
+
+    @Nullable
+    @Override
+    public IBinder onBind(Intent intent) {
+        start();
+        return null;
     }
 
     private void connect() {
@@ -114,18 +107,10 @@ public class DeviceActivity extends AppCompatActivity {
                 mBluetoothGatt = gatt;
                 gatt.discoverServices();
                 dataCount=0;
-                mHandler.post(new Runnable() {
-                    public void run() {
-                        mDataView.setText("Connected");
-                    }
-                });
+
             } else if (newState == BluetoothProfile.STATE_DISCONNECTED) {
                 mBluetoothGatt = null;
-                mHandler.post(new Runnable() {
-                    public void run() {
-                        mDataView.setText("Disconnected");
-                    }
-                });
+
             }
         }
 
@@ -170,11 +155,7 @@ public class DeviceActivity extends AppCompatActivity {
                         Log.i("setCharactNotification", "failed");
                     }
                 } else {
-                    mHandler.post(new Runnable() {
-                        public void run() {
-                            showToast("UART RX characteristic not found");
-                        }
-                    });
+
                 }
             }
         }
@@ -218,11 +199,6 @@ public class DeviceActivity extends AppCompatActivity {
                 if(checkForStatic()){
                     stop();
                     calibrating=true;
-                    mHandler.post(new Runnable() {
-                        public void run() {
-                            mDataView.setText("Calibrating");
-                        }
-                    });
                     mHandler.postDelayed(new Runnable(){
                         public void run(){
                             calibrating=false;
@@ -243,26 +219,21 @@ public class DeviceActivity extends AppCompatActivity {
                 }
             }
             if (System.currentTimeMillis() > showtime + 500) {
-                    for (Beat b : beats) {
-                        if (System.currentTimeMillis() - b.getTime() > 5000) {
-                            rBeats.add(b);
-                        }
+                for (Beat b : beats) {
+                    if (System.currentTimeMillis() - b.getTime() > 5000) {
+                        rBeats.add(b);
                     }
-                    for(Beat b:rBeats){
-                        beats.remove(b);
-                    }
-                    rBeats.clear();
+                }
+                for(Beat b:rBeats){
+                    beats.remove(b);
+                }
+                rBeats.clear();
                 bpmTemp = beats.size();
                 bpm = (long) ((0.5*bpm)+((1-0.5)*(bpmTemp * 60000 / (System.currentTimeMillis()-beats.getFirst().getTime()))));
                 showtime = System.currentTimeMillis();
-                mHandler.post(new Runnable() {
-                    public void run() {
-                        mDataView.setText("bpm: " + (int) bpm);
-                    }
-                });
+
             }
             Log.i("data as string", "bpmTemp: " + bpmTemp + " testBpmTemp: " + bpmTemp * 60000 / (System.currentTimeMillis()-beats.getFirst().getTime()));
-            seriesX.appendData(new DataPoint(dataCount++, raw), true, 200);
 
         }
 
@@ -298,58 +269,5 @@ public class DeviceActivity extends AppCompatActivity {
         public void onCharacteristicRead(BluetoothGatt gatt, BluetoothGattCharacteristic characteristic, int status) {}
     };
 
-    // Below: gui stuff...
-    //private TextView mDeviceView;
-    private TextView mDataView;
-    private GraphView graphView1;
-    private LineGraphSeries<DataPoint> seriesX;
-    @Override
-    protected void onCreate(Bundle savedInstanceState) {
-        super.onCreate(savedInstanceState);
-        setContentView(R.layout.activity_device);
-        mDataView = findViewById(R.id.dataView);
 
-        mHandler = new Handler();
-        Toolbar toolbar = (Toolbar) findViewById(R.id.toolbar);
-        toolbar.inflateMenu(R.menu.bluetooth_control_menu);
-        toolbar.setOnMenuItemClickListener(new Toolbar.OnMenuItemClickListener() {
-            @Override
-            public boolean onMenuItemClick(MenuItem item) {
-                switch (item.getItemId()) {
-                    case R.id.ss:
-                        if(stop){
-                            start();
-                        }else
-                            stop();
-                        stop=!stop;
-                        return true;
-                    default:
-                        return false;
-                }
-            }
-        });
-        toolbar.bringToFront();
-        getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
-    }
-
-
-
-    protected void showToast(String msg) {
-        Toast toast = Toast.makeText(this, msg, Toast.LENGTH_SHORT);
-        toast.show();
-    }
-
-    private void startGraph(){
-        graphView1 = findViewById(R.id.graph);
-        graphView1.removeAllSeries();
-        seriesX = new LineGraphSeries<>(new  DataPoint[]{});
-        seriesX.setColor(Color.RED);
-        graphView1.addSeries(seriesX);
-        graphView1.getViewport().setXAxisBoundsManual(true);
-        graphView1.getViewport().setMinX(0);
-        graphView1.getViewport().setMaxX(100);
-        graphView1.getViewport().setMinY(0);
-        graphView1.getViewport().setMaxY(2000);
-        graphView1.getViewport().setScalable(false);
-    }
 }

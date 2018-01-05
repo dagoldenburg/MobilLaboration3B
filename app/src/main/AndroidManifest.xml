@@ -5,9 +5,11 @@
     <uses-permission android:name="android.permission.BLUETOOTH" />
     <uses-permission android:name="android.permission.BLUETOOTH_ADMIN" />
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+
     <uses-feature
         android:name="android.hardware.bluetooth_le"
         android:required="true" />
+
     <application
         android:allowBackup="true"
         android:icon="@mipmap/ic_launcher"
@@ -26,7 +28,13 @@
             android:name=".DeviceActivity"
             android:label="BT-BPM"
             android:screenOrientation="portrait"
-            android:theme="@style/Theme.AppCompat.NoActionBar"></activity>
+            android:theme="@style/Theme.AppCompat.NoActionBar" />
+        <activity android:name=".PreferencesActivity"></activity>
+
+        <service
+            android:name=".DeviceService"
+            android:enabled="true"
+            android:exported="true"></service>
     </application>
 
 </manifest>

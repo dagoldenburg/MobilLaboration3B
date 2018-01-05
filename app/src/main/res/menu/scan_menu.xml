@@ -5,4 +5,12 @@
         android:id="@+id/scan"
         android:title="Scan for BT device"
         app:showAsAction="ifRoom" />
+    <item
+        android:id="@+id/preference"
+        android:title="Preference"
+        app:showAsAction="ifRoom" />
+    <item
+    android:id="@+id/stopService"
+    android:title="Stop service"
+    app:showAsAction="ifRoom" />
 </menu>
