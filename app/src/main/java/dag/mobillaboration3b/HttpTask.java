@@ -30,7 +30,7 @@ public class HttpTask extends AsyncTask<String,Void,Void> {
         String data = params[0]; //data to post
         OutputStream out = null;
         try {
-            URL url = new URL("http://"+urlString+":3000");
+            URL url = new URL("http://"+urlString+":3000/upload");
             HttpURLConnection urlConnection = (HttpURLConnection) url.openConnection();
             out = new BufferedOutputStream(urlConnection.getOutputStream());
             BufferedWriter writer = new BufferedWriter (new OutputStreamWriter(out, "UTF-8"));
