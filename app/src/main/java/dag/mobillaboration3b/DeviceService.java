@@ -1,6 +1,5 @@
 package dag.mobillaboration3b;
 
-import android.app.IntentService;
 import android.app.Service;
 import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothGatt;
@@ -10,24 +9,14 @@ import android.bluetooth.BluetoothGattDescriptor;
 import android.bluetooth.BluetoothGattService;
 import android.bluetooth.BluetoothProfile;
 import android.content.Intent;
-import android.graphics.Color;
-import android.os.Bundle;
 import android.os.Handler;
 import android.os.IBinder;
 import android.support.annotation.Nullable;
-import android.support.v7.widget.Toolbar;
 import android.util.Log;
-import android.view.MenuItem;
-import android.view.WindowManager;
-import android.widget.TextView;
-import android.widget.Toast;
-
-import com.jjoe64.graphview.GraphView;
-import com.jjoe64.graphview.series.DataPoint;
-import com.jjoe64.graphview.series.LineGraphSeries;
 
 import java.util.LinkedList;
 import java.util.List;
+import java.util.NoSuchElementException;
 import java.util.UUID;
 
 public class DeviceService extends Service {
@@ -49,7 +38,7 @@ public class DeviceService extends Service {
     private BluetoothGattService mUartService = null;
     private long dataCount;
     private Handler mHandler;
-    private StringBuilder sendData;
+    private StringBuilder sendData = new StringBuilder();
 
     public DeviceService() {
     }
@@ -57,6 +46,8 @@ public class DeviceService extends Service {
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
         start();
+
+        new HttpTaskReset(getApplicationContext()).execute();
         return Service.START_NOT_STICKY;
     }
 
@@ -185,10 +176,6 @@ public class DeviceService extends Service {
             Log.i("data as string", data);
             final int raw = Integer.parseInt(data);
             array[i++] = raw;
-            sendData.append(raw+",");
-            if(sendData.length()>200){
-                new HttpTask(getApplicationContext()).execute(sendData.toString());
-            }
             if (i == arrSize) {
                 i = 0;
                 oldAvg = average;
@@ -212,6 +199,11 @@ public class DeviceService extends Service {
                         }
                     },5000);
                 }
+            }
+            sendData.append(raw+",");
+            if(sendData.length()>50){
+                new HttpTaskPost(getApplicationContext()).execute(sendData.toString());
+                sendData = new StringBuilder();
             }
             if (rising == false) {
                 if (oldAvg < average) {
@@ -238,8 +230,11 @@ public class DeviceService extends Service {
                 showtime = System.currentTimeMillis();
 
             }
-            Log.i("data as string", "bpmTemp: " + bpmTemp + " testBpmTemp: " + bpmTemp * 60000 / (System.currentTimeMillis()-beats.getFirst().getTime()));
+            try {
+                Log.i("data as string", "bpmTemp: " + bpmTemp + " testBpmTemp: " + bpmTemp * 60000 / (System.currentTimeMillis() - beats.getFirst().getTime()));
+            }catch(NoSuchElementException e){
 
+            }
         }
 
         private boolean checkForStatic(){

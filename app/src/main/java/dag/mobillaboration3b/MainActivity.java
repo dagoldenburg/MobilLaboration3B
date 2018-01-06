@@ -46,6 +46,7 @@ import dag.mobillaboration3b.R;
  */
 public class MainActivity extends AppCompatActivity {
     public static final int REQUEST_ENABLE_BT = 1000;
+    public static final int REQUEST_ACCESS_LOCATION = 1001;
     // period for scan, 5000 ms
     private static final long SCAN_PERIOD = 5000;
 
@@ -139,7 +140,11 @@ public class MainActivity extends AppCompatActivity {
         String s = shareprefs.getString("ip","0.0.0.0");
         Toast.makeText(getApplicationContext(), s, Toast.LENGTH_SHORT).show();
     }
-
+    // callback for ActivityCompat.requestPermissions
+    @Override
+    public void onRequestPermissionsResult(int requestCode,
+                                           String permissions[], int[] grantResults) {
+    }
 
     @Override
     public boolean onCreateOptionsMenu(Menu menu){
@@ -158,7 +163,9 @@ public class MainActivity extends AppCompatActivity {
                 serviceIntent = new Intent(getApplicationContext(), PreferencesActivity.class);
                 startActivity(serviceIntent);
                 return true;
-            case R.id.stopService: stopService(serviceIntent);Toast.makeText(getApplicationContext(), "Service Stopped", Toast.LENGTH_SHORT).show();return true;
+            case R.id.stopService: stopService(serviceIntent);
+            Toast.makeText(getApplicationContext(), "Service Stopped", Toast.LENGTH_SHORT).show();
+            return true;
             default:return false;
         }
     }
@@ -166,6 +173,9 @@ public class MainActivity extends AppCompatActivity {
     @Override
     protected void onStart() {
         super.onStart();
+            ActivityCompat.requestPermissions(this,
+                    new String[]{Manifest.permission.ACCESS_COARSE_LOCATION},
+                    REQUEST_ACCESS_LOCATION);
         Intent enableBtIntent = new Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE);
         startActivityForResult(enableBtIntent, REQUEST_ENABLE_BT);
     }

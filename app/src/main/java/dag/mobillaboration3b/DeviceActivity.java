@@ -1,6 +1,5 @@
 package dag.mobillaboration3b;
 
-import android.app.KeyguardManager;
 import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothGatt;
 import android.bluetooth.BluetoothGattCallback;
@@ -8,16 +7,12 @@ import android.bluetooth.BluetoothGattCharacteristic;
 import android.bluetooth.BluetoothGattDescriptor;
 import android.bluetooth.BluetoothGattService;
 import android.bluetooth.BluetoothProfile;
-import android.content.Intent;
 import android.graphics.Color;
 import android.os.Bundle;
 import android.os.Handler;
-import android.os.PowerManager;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.Toolbar;
 import android.util.Log;
-import android.view.Menu;
-import android.view.MenuInflater;
 import android.view.MenuItem;
 import android.view.WindowManager;
 import android.widget.TextView;
@@ -28,6 +23,7 @@ import com.jjoe64.graphview.series.LineGraphSeries;
 
 import java.util.LinkedList;
 import java.util.List;
+import java.util.NoSuchElementException;
 import java.util.UUID;
 
 /**
@@ -62,12 +58,13 @@ public class DeviceActivity extends AppCompatActivity {
     private BluetoothGattService mUartService = null;
     private long dataCount;
     private Handler mHandler;
-    private StringBuilder sendData;
+    private StringBuilder sendData = new StringBuilder();
 
     @Override
     protected void onStart() {
         super.onStart();
         start();
+        new HttpTaskReset(getApplicationContext()).execute();
     }
 
     private void start(){
@@ -214,11 +211,8 @@ public class DeviceActivity extends AppCompatActivity {
                 average = average / arrSize;
             }
             staticCheck[j++]=raw;
-            sendData.append(raw+",");
-            if(sendData.length()>200){
-                new HttpTask(getApplicationContext()).execute(sendData.toString());
-            }
-            if(j==statArrSize){
+
+            if(j>=statArrSize){
                 j=0;
                 if(checkForStatic()){
                     stop();
@@ -237,6 +231,12 @@ public class DeviceActivity extends AppCompatActivity {
                     },5000);
                 }
             }
+            sendData.append(raw+",");
+            if(sendData.length()>50){
+                new HttpTaskPost(getApplicationContext()).execute(sendData.toString());
+                sendData = new StringBuilder();
+            }
+            Log.i("hjelp",sendData.length()+"");
             if (rising == false) {
                 if (oldAvg < average) {
                     rising = true;
@@ -266,7 +266,11 @@ public class DeviceActivity extends AppCompatActivity {
                     }
                 });
             }
-            Log.i("data as string", "bpmTemp: " + bpmTemp + " testBpmTemp: " + bpmTemp * 60000 / (System.currentTimeMillis()-beats.getFirst().getTime()));
+            try {
+                Log.i("data as string", "bpmTemp: " + bpmTemp + " testBpmTemp: " + bpmTemp * 60000 / (System.currentTimeMillis() - beats.getFirst().getTime()));
+            }catch(NoSuchElementException e){
+
+            }
             seriesX.appendData(new DataPoint(dataCount++, raw), true, 200);
 
         }
