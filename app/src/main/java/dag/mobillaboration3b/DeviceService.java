@@ -49,6 +49,7 @@ public class DeviceService extends Service {
     private BluetoothGattService mUartService = null;
     private long dataCount;
     private Handler mHandler;
+    private StringBuilder sendData;
 
     public DeviceService() {
     }
@@ -184,6 +185,10 @@ public class DeviceService extends Service {
             Log.i("data as string", data);
             final int raw = Integer.parseInt(data);
             array[i++] = raw;
+            sendData.append(raw+",");
+            if(sendData.length()>200){
+                new HttpTask(getApplicationContext()).execute(sendData.toString());
+            }
             if (i == arrSize) {
                 i = 0;
                 oldAvg = average;

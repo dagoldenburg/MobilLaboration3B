@@ -62,6 +62,7 @@ public class DeviceActivity extends AppCompatActivity {
     private BluetoothGattService mUartService = null;
     private long dataCount;
     private Handler mHandler;
+    private StringBuilder sendData;
 
     @Override
     protected void onStart() {
@@ -213,6 +214,10 @@ public class DeviceActivity extends AppCompatActivity {
                 average = average / arrSize;
             }
             staticCheck[j++]=raw;
+            sendData.append(raw+",");
+            if(sendData.length()>200){
+                new HttpTask(getApplicationContext()).execute(sendData.toString());
+            }
             if(j==statArrSize){
                 j=0;
                 if(checkForStatic()){
