@@ -77,7 +77,6 @@ public class HttpTaskPost extends AsyncTask<String,Void,Void> {
                     try {
                         return requestBody == null ? null : requestBody.getBytes("utf-8");
                     } catch (UnsupportedEncodingException uee) {
-                        VolleyLog.wtf("Unsupported Encoding while trying to get the bytes of %s using %s", requestBody, "utf-8");
                         return null;
                     }
                 }
@@ -92,7 +91,6 @@ public class HttpTaskPost extends AsyncTask<String,Void,Void> {
                     return Response.success(responseString, HttpHeaderParser.parseCacheHeaders(response));
                 }
             };
-
             requestQueue.add(stringRequest);
         } catch (JSONException e) {
             e.printStackTrace();

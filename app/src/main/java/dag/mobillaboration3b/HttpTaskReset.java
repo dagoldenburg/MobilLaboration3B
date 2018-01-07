@@ -45,19 +45,18 @@ public class HttpTaskReset extends AsyncTask<Void,Void,Void> {
         String urlString = shareprefs.getString("ip","0.0.0.0");
         RequestQueue queue = Volley.newRequestQueue(context);
 
-// Request a string response from the provided URL.
         StringRequest stringRequest = new StringRequest(Request.Method.GET, "http://"+urlString+":3000/",
                 new Response.Listener<String>() {
                     @Override
                     public void onResponse(String response) {
-                        // Display the first 500 characters of the response string.
+
                     }
                 }, new Response.ErrorListener() {
             @Override
             public void onErrorResponse(VolleyError error) {
             }
         });
-// Add the request to the RequestQueue.
+
         queue.add(stringRequest);
         return null;
     }

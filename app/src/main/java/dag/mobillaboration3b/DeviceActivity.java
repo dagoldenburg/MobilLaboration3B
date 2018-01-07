@@ -145,21 +145,12 @@ public class DeviceActivity extends AppCompatActivity {
                     for (BluetoothGattCharacteristic chara : characteristics) {
                         Log.i("characteristic", chara.getUuid().toString());
                     }
-
-                    /*
-                     * Enable notifications on UART data
-                     * First: call setCharacteristicNotification
-                     */
                     BluetoothGattCharacteristic rx =
                             mUartService.getCharacteristic(UART_RX_CHARACTERISTIC_UUID);
                     boolean success = gatt.setCharacteristicNotification(rx, true);
                     if (success) {
                         gatt.readCharacteristic(rx);
                         Log.i("setCharactNotification", "success");
-                        /*
-                         * Second: set enable notification
-                         * (why isn't this done by setCharacteristicNotification - a flaw in the API?)
-                         */
                         BluetoothGattDescriptor descriptor =
                                 rx.getDescriptor(CLIENT_CHARACTERISTIC_CONFIG);
                         descriptor.setValue(BluetoothGattDescriptor.ENABLE_INDICATION_VALUE);
