@@ -1,5 +1,6 @@
 package dag.mobillaboration3b;
 
+import android.app.KeyguardManager;
 import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothGatt;
 import android.bluetooth.BluetoothGattCallback;
@@ -7,12 +8,16 @@ import android.bluetooth.BluetoothGattCharacteristic;
 import android.bluetooth.BluetoothGattDescriptor;
 import android.bluetooth.BluetoothGattService;
 import android.bluetooth.BluetoothProfile;
+import android.content.Intent;
 import android.graphics.Color;
 import android.os.Bundle;
 import android.os.Handler;
+import android.os.PowerManager;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.Toolbar;
 import android.util.Log;
+import android.view.Menu;
+import android.view.MenuInflater;
 import android.view.MenuItem;
 import android.view.WindowManager;
 import android.widget.TextView;
@@ -23,8 +28,10 @@ import com.jjoe64.graphview.series.LineGraphSeries;
 
 import java.util.LinkedList;
 import java.util.List;
-import java.util.NoSuchElementException;
 import java.util.UUID;
+
+import dag.mobillaboration3b.Model.ApplicationLogic;
+import dag.mobillaboration3b.Model.Beat;
 
 /**
  * This is where we manage the BLE device and the corresponding services, characteristics et c.
@@ -51,20 +58,16 @@ public class DeviceActivity extends AppCompatActivity {
     public static final UUID CLIENT_CHARACTERISTIC_CONFIG =
             UUID.fromString("00002902-0000-1000-8000-00805f9b34fb");
     private boolean stop = false;
-    private LinkedList<Beat> beats = new LinkedList<>();
-    private LinkedList<Beat> rBeats = new LinkedList<>();
     private BluetoothDevice mConnectedDevice = null;
     private BluetoothGatt mBluetoothGatt = null;
     private BluetoothGattService mUartService = null;
     private long dataCount;
     private Handler mHandler;
-    private StringBuilder sendData = new StringBuilder();
 
     @Override
     protected void onStart() {
         super.onStart();
         start();
-        new HttpTaskReset(getApplicationContext()).execute();
     }
 
     private void start(){
@@ -75,9 +78,8 @@ public class DeviceActivity extends AppCompatActivity {
         startGraph();
     }
 
-    private void stop(){
-        beats.clear();
-        rBeats.clear();
+    private  void stop(){
+        ApplicationLogic.stop();
         Log.i("onStop", "-");
         if (mBluetoothGatt != null) {
             mBluetoothGatt.disconnect();
@@ -173,122 +175,36 @@ public class DeviceActivity extends AppCompatActivity {
                 descriptor, int status) {
         }
 
-        final int arrSize=4,statArrSize=8;
-        int[] array = new int[arrSize];
-        int[] staticCheck = new int[statArrSize];
-        int i,j,oldAvg,average,bpmTemp;
-        long showtime,bpm;
-        boolean rising,calibrating=false;
         @Override
         public void onCharacteristicChanged(BluetoothGatt gatt, BluetoothGattCharacteristic
                 characteristic) {
-            if(calibrating){
+            if(ApplicationLogic.calibrating)
                 return;
-            }
             Log.i("onCharacteristicChanged", characteristic.getUuid().toString());
-            BluetoothGattCharacteristic rx =
-                    mUartService.getCharacteristic(UART_RX_CHARACTERISTIC_UUID);
+            BluetoothGattCharacteristic rx = mUartService.getCharacteristic(UART_RX_CHARACTERISTIC_UUID);
             String data = rx.getStringValue(0);
             Log.i("data as string", data);
             final int raw = Integer.parseInt(data);
-            array[i++] = raw;
-            if (i == arrSize) {
-                i = 0;
-                oldAvg = average;
-                average = 0;
-                for (int index = 0; index < array.length; index++) {
-                    average += array[index];
-                }
-                average = average / arrSize;
-            }
-            staticCheck[j++]=raw;
-
-            if(j>=statArrSize){
-                j=0;
-                if(checkForStatic()){
-                    stop();
-                    calibrating=true;
-                    mHandler.post(new Runnable() {
-                        public void run() {
-                            mDataView.setText("Calibrating");
-                        }
-                    });
-                    mHandler.postDelayed(new Runnable(){
-                        public void run(){
-                            calibrating=false;
-                            Log.i("asd2","asdasd");
-                            start();
-                        }
-                    },5000);
-                }
-            }
-            sendData.append(raw+",");
-            if(sendData.length()>50){
-                new HttpTaskPost(getApplicationContext()).execute(sendData.toString());
-                sendData = new StringBuilder();
-            }
-            Log.i("hjelp",sendData.length()+"");
-            if (rising == false) {
-                if (oldAvg < average) {
-                    rising = true;
-                }
-            } else if (rising == true) {
-                if (oldAvg > average) {
-                    beats.add(new Beat(System.currentTimeMillis()));
-                    rising = false;
-                }
-            }
-            if (System.currentTimeMillis() > showtime + 500) {
-                    for (Beat b : beats) {
-                        if (System.currentTimeMillis() - b.getTime() > 5000) {
-                            rBeats.add(b);
-                        }
-                    }
-                    for(Beat b:rBeats){
-                        beats.remove(b);
-                    }
-                    rBeats.clear();
-                bpmTemp = beats.size();
-                bpm = (long) ((0.5*bpm)+((1-0.5)*(bpmTemp * 60000 / (System.currentTimeMillis()-beats.getFirst().getTime()))));
-                showtime = System.currentTimeMillis();
+            if(ApplicationLogic.checkStatic(raw)){
+                stop();
                 mHandler.post(new Runnable() {
                     public void run() {
-                        mDataView.setText("bpm: " + (int) bpm);
-                    }
-                });
+                        mDataView.setText("Calibrating");
+                    }});
+                mHandler.postDelayed(new Runnable(){
+                    public void run(){
+                        ApplicationLogic.calibrating=false;
+                        start();
+                    }},5000);
             }
-            try {
-                Log.i("data as string", "bpmTemp: " + bpmTemp + " testBpmTemp: " + bpmTemp * 60000 / (System.currentTimeMillis() - beats.getFirst().getTime()));
-            }catch(NoSuchElementException e){
-
+            if(ApplicationLogic.calculateBeats(raw,getApplicationContext())){
+                mHandler.post(new Runnable() {
+                    public void run() {
+                        mDataView.setText("bpm: " + (int) ApplicationLogic.bpm);
+                    }});
             }
             seriesX.appendData(new DataPoint(dataCount++, raw), true, 200);
 
-        }
-
-        private boolean checkForStatic(){
-            int counter=0;
-            try {
-                for (int i = 0; i < staticCheck.length; i++) {
-                    if (i % 2 == 0) {
-                        if (staticCheck[i] > staticCheck[i + 1]) {
-                            counter++;
-                        }
-                    } else {
-                        if (staticCheck[i] < staticCheck[i + 1]) {
-                            counter++;
-                        }
-                    }
-                }
-            }catch(IndexOutOfBoundsException e){
-                Log.i("asd","erorr");
-            }
-            if(counter==staticCheck.length-1){
-                Log.i("asd","static");
-                return true;
-            }
-            Log.i("asd","nostatic "+counter);
-            return false;
         }
 
         @Override
@@ -298,8 +214,6 @@ public class DeviceActivity extends AppCompatActivity {
         public void onCharacteristicRead(BluetoothGatt gatt, BluetoothGattCharacteristic characteristic, int status) {}
     };
 
-    // Below: gui stuff...
-    //private TextView mDeviceView;
     private TextView mDataView;
     private GraphView graphView1;
     private LineGraphSeries<DataPoint> seriesX;
